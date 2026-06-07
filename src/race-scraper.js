@@ -58,6 +58,8 @@ function htmlToLines(html) {
       .replace(/<script[\s\S]*?<\/script>/gi, ' ')
       .replace(/<style[\s\S]*?<\/style>/gi, ' ')
       .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/td>/gi, ' | ')
+      .replace(/<\/th>/gi, ' | ')
       .replace(/<\/p>|<\/div>|<\/tr>|<\/li>|<\/h\d>/gi, '\n')
       .replace(/<[^>]+>/g, ' ')
   )
@@ -72,12 +74,12 @@ function extractTrackName(html, fallbackCode) {
     const clean = decodeHtml(title).replace(/Entries.*$/i, '').replace(/\|.*$/, '').trim();
     if (clean) return clean;
   }
+  const h1 = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1];
+  if (h1) return decodeHtml(h1).replace(/Entries.*$/i, '').trim() || fallbackCode;
   return fallbackCode;
 }
 
 function estimateRatings(horse, race, index) {
-  // Free entry pages do not include premium speed figures. These estimates let the model
-  // rank from public free fields only: morning line, post position, and field depth.
   const odds = horse.oddsDecimal;
   const oddsScore = Math.max(45, 92 - odds * 3.2);
   const postBoost = Math.max(0, 6 - Math.abs((index + 1) - Math.min(5, race.horses.length / 2)));
@@ -91,7 +93,7 @@ function estimateRatings(horse, race, index) {
   };
 }
 
-function parseEquibaseHtml(html, trackCode) {
+function parseEquibaseHtml(html, trackCode, sourceUrl = '') {
   const lines = htmlToLines(html);
   const track = extractTrackName(html, trackCode);
   const date = todayIso(config.timezone);
@@ -99,16 +101,18 @@ function parseEquibaseHtml(html, trackCode) {
   let current = null;
 
   for (const line of lines) {
-    const raceMatch = line.match(/^Race\s+(\d+)\b/i) || line.match(/\bRace:\s*(\d+)\b/i);
+    const raceMatch = line.match(/^Race\s+(\d+)\b/i) || line.match(/\bRace:\s*(\d+)\b/i) || line.match(/^\|?\s*(\d{1,2})\s*\|\s*\$/);
     if (raceMatch) {
       if (current?.horses?.length >= 2) races.push(current);
       current = {
         date,
         track,
+        trackCode,
         race: Number(raceMatch[1]),
-        postTime: line.match(/Post(?:\s+Time)?:?\s*([^|]+?)(?:\s{2,}|$)/i)?.[1]?.trim() || '',
+        postTime: line.match(/Post(?:\s+Time)?:?\s*([^|]+?)(?:\s{2,}|\||$)/i)?.[1]?.trim() || line.match(/(\d{1,2}:\d{2}\s*(?:AM|PM)?\s*(?:ET|CT|MT|PT)?)/i)?.[1] || '',
         surface: line.match(/\b(Dirt|Turf|Synthetic|All Weather)\b/i)?.[1] || '',
         distance: line.match(/(\d+\s*(?:furlongs?|miles?)|[\d.]+\s*(?:f|m))/i)?.[1] || '',
+        sourceUrl,
         horses: []
       };
       continue;
@@ -116,8 +120,10 @@ function parseEquibaseHtml(html, trackCode) {
 
     if (!current) continue;
 
-    // Common Equibase entry text has lines like: "1 Horse Name (KY) ... Jockey: A Rider Trainer: B Trainer Morning Line: 5/2"
-    const horseMatch = line.match(/^(\d{1,2}[A-Z]?)\s+(.+?)(?:\s+\([A-Z]{2,3}\)|\s+Jockey:|\s+Trainer:|\s+Morning Line:|$)/i);
+    // Common Equibase text has lines like:
+    // 1 Horse Name ... Jockey: A Rider Trainer: B Trainer Morning Line: 5/2
+    // or table text with pipes after stripping HTML.
+    const horseMatch = line.match(/^\s*(\d{1,2}[A-Z]?)\s+(.+?)(?:\s+\([A-Z]{2,3}\)|\s+Jockey:|\s+Trainer:|\s+Morning Line:|\s+\|\s+|$)/i);
     if (!horseMatch) continue;
 
     const programNumber = horseMatch[1];
@@ -126,10 +132,12 @@ function parseEquibaseHtml(html, trackCode) {
       .replace(/\s+/g, ' ')
       .trim();
 
-    if (!name || name.length < 2 || /^(Race|Go to Race|Index|Home)$/i.test(name)) continue;
+    if (!name || name.length < 2 || /^(Race|Go to Race|Index|Home|Purse|Distance)$/i.test(name)) continue;
     if (current.horses.some((h) => h.programNumber === programNumber)) continue;
 
-    const morningLine = line.match(/Morning\s+Line:?\s*([0-9]+\/[0-9]+|Even|[0-9.]+)/i)?.[1] || '';
+    const morningLine = line.match(/Morning\s+Line:?\s*([0-9]+\/[0-9]+|Even|[0-9.]+)/i)?.[1]
+      || line.match(/\|\s*([0-9]+\/[0-9]+|Even)\s*(?:\||$)/i)?.[1]
+      || '';
     const jockey = line.match(/Jockey:?\s*(.+?)(?:\s+Trainer:|\s+Owner:|\s+Breeder:|\s+Morning Line:|$)/i)?.[1]?.trim() || '';
     const trainer = line.match(/Trainer:?\s*(.+?)(?:\s+Owner:|\s+Breeder:|\s+Morning Line:|$)/i)?.[1]?.trim() || '';
 
@@ -164,8 +172,9 @@ function parseEquibaseHtml(html, trackCode) {
 async function fetchText(url) {
   const response = await fetch(url, {
     headers: {
-      'user-agent': 'Mozilla/5.0 (compatible; HorseRacingDiscordBot/1.0)',
-      accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+      'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/125 Safari/537.36',
+      accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'accept-language': 'en-US,en;q=0.9'
     }
   });
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
@@ -183,6 +192,7 @@ export async function loadRacesFromCsv(csvPath = config.data.raceCsvPath) {
       grouped.set(key, {
         date: row.date || 'today',
         track: row.track,
+        trackCode: row.track_code || '',
         race: Number(row.race),
         postTime: row.post_time || '',
         surface: row.surface || '',
@@ -218,23 +228,57 @@ export async function loadRacesFromPublicCsvUrl(url = config.data.publicCsvUrl) 
   return loadRacesFromCsv(tmpPath);
 }
 
+async function discoverEquibaseTodayUrls(dateCode) {
+  if (!config.data.autoDiscoverTracks) return [];
+  try {
+    const indexUrl = 'https://www.equibase.com/static/entry/index.html';
+    const html = await fetchText(indexUrl);
+    const urls = new Set();
+    const re = new RegExp(`RaceCardIndex([A-Z0-9]+)${dateCode}USA-EQB\\.html`, 'g');
+    let match;
+    while ((match = re.exec(html))) {
+      urls.add(`https://www.equibase.com/static/entry/RaceCardIndex${match[1]}${dateCode}USA-EQB.html`);
+    }
+    console.log(`Discovered ${urls.size} Equibase race-card URLs for today.`);
+    return [...urls];
+  } catch (error) {
+    console.warn(`Could not auto-discover Equibase tracks: ${error.message}`);
+    return [];
+  }
+}
+
+function configuredEquibaseUrls(dateCode) {
+  return config.data.trackCodes.flatMap((trackCode) => [
+    `https://www.equibase.com/static/entry/RaceCardIndex${trackCode}${dateCode}USA-EQB.html`,
+    `https://www.equibase.com/static/entry/${trackCode}${dateCode}USA-EQB.html`
+  ]);
+}
+
 export async function loadRacesFromEquibase() {
   const dateCode = todayMmDdYy(config.timezone);
   const allRaces = [];
+  const urls = [...new Set([...(await discoverEquibaseTodayUrls(dateCode)), ...configuredEquibaseUrls(dateCode)])];
 
-  for (const trackCode of config.data.trackCodes) {
-    const url = `https://www.equibase.com/static/entry/${trackCode}${dateCode}USA-EQB.html`;
+  for (const url of urls) {
+    const trackCode = url.match(/RaceCardIndex([A-Z0-9]+)\d{6}USA-EQB\.html/i)?.[1]
+      || url.match(/\/([A-Z0-9]+)\d{6}USA-EQB\.html/i)?.[1]
+      || 'UNK';
     try {
       console.log(`Fetching ${url}`);
       const html = await fetchText(url);
-      const races = parseEquibaseHtml(html, trackCode);
+      const races = parseEquibaseHtml(html, trackCode, url);
+      if (!races.length) console.warn(`Fetched ${trackCode}, but parsed 0 races from that page.`);
       allRaces.push(...races);
     } catch (error) {
       console.warn(`Could not fetch ${trackCode}: ${error.message}`);
     }
   }
 
-  return allRaces;
+  const deduped = new Map();
+  for (const race of allRaces) {
+    deduped.set(`${race.trackCode || race.track}|${race.race}`, race);
+  }
+  return [...deduped.values()];
 }
 
 export async function loadRawRaces() {
