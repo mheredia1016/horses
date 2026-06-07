@@ -20,23 +20,19 @@ function parseOdds(value) {
 }
 
 function todayMmDdYy(timezone) {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    year: '2-digit',
-    month: '2-digit',
-    day: '2-digit'
-  }).formatToParts(new Date());
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: '2-digit', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
   const get = (type) => parts.find((p) => p.type === type)?.value;
   return `${get('month')}${get('day')}${get('year')}`;
 }
 
+function todayYyyyMmDd(timezone) {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+  const get = (type) => parts.find((p) => p.type === type)?.value;
+  return `${get('year')}${get('month')}${get('day')}`;
+}
+
 function todayIso(timezone) {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  }).formatToParts(new Date());
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
   const get = (type) => parts.find((p) => p.type === type)?.value;
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
@@ -68,17 +64,6 @@ function htmlToLines(html) {
     .filter(Boolean);
 }
 
-function extractTrackName(html, fallbackCode) {
-  const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1];
-  if (title) {
-    const clean = decodeHtml(title).replace(/Entries.*$/i, '').replace(/\|.*$/, '').trim();
-    if (clean) return clean;
-  }
-  const h1 = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1];
-  if (h1) return decodeHtml(h1).replace(/Entries.*$/i, '').trim() || fallbackCode;
-  return fallbackCode;
-}
-
 function estimateRatings(horse, race, index) {
   const odds = horse.oddsDecimal;
   const oddsScore = Math.max(45, 92 - odds * 3.2);
@@ -93,55 +78,51 @@ function estimateRatings(horse, race, index) {
   };
 }
 
-function parseEquibaseHtml(html, trackCode, sourceUrl = '') {
-  const lines = htmlToLines(html);
-  const track = extractTrackName(html, trackCode);
-  const date = todayIso(config.timezone);
-  const races = [];
-  let current = null;
-
-  for (const line of lines) {
-    const raceMatch = line.match(/^Race\s+(\d+)\b/i) || line.match(/\bRace:\s*(\d+)\b/i) || line.match(/^\|?\s*(\d{1,2})\s*\|\s*\$/);
-    if (raceMatch) {
-      if (current?.horses?.length >= 2) races.push(current);
-      current = {
-        date,
-        track,
-        trackCode,
-        race: Number(raceMatch[1]),
-        postTime: line.match(/Post(?:\s+Time)?:?\s*([^|]+?)(?:\s{2,}|\||$)/i)?.[1]?.trim() || line.match(/(\d{1,2}:\d{2}\s*(?:AM|PM)?\s*(?:ET|CT|MT|PT)?)/i)?.[1] || '',
-        surface: line.match(/\b(Dirt|Turf|Synthetic|All Weather)\b/i)?.[1] || '',
-        distance: line.match(/(\d+\s*(?:furlongs?|miles?)|[\d.]+\s*(?:f|m))/i)?.[1] || '',
-        sourceUrl,
-        horses: []
-      };
-      continue;
+async function fetchText(url) {
+  const response = await fetch(url, {
+    headers: {
+      'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1',
+      accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'accept-language': 'en-US,en;q=0.9'
     }
+  });
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+  return response.text();
+}
 
-    if (!current) continue;
+function parseMobileRacePage(html, trackCode, sourceUrl) {
+  const lines = htmlToLines(html);
+  const track = lines.find((line) => !/EQUIBASE|source|-----|Image:/i.test(line) && line.length > 2) || trackCode;
+  const dateLine = lines.find((line) => /\d{2}\/\d{2}\/\d{4}\s+Race\s+\d+/i.test(line));
+  const raceNum = Number(dateLine?.match(/Race\s+(\d+)/i)?.[1] || 0);
+  const dateMatch = dateLine?.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  const date = dateMatch ? `${dateMatch[3]}-${dateMatch[1]}-${dateMatch[2]}` : todayIso(config.timezone);
+  const postTime = lines.find((line) => /^Post Time:/i.test(line))?.replace(/^Post Time:\s*/i, '').trim() || '';
+  const raceType = lines[lines.findIndex((line) => /^Post Time:/i.test(line)) + 1] || '';
 
-    // Common Equibase text has lines like:
-    // 1 Horse Name ... Jockey: A Rider Trainer: B Trainer Morning Line: 5/2
-    // or table text with pipes after stripping HTML.
-    const horseMatch = line.match(/^\s*(\d{1,2}[A-Z]?)\s+(.+?)(?:\s+\([A-Z]{2,3}\)|\s+Jockey:|\s+Trainer:|\s+Morning Line:|\s+\|\s+|$)/i);
-    if (!horseMatch) continue;
+  if (!raceNum) return null;
 
-    const programNumber = horseMatch[1];
-    const name = horseMatch[2]
-      .replace(/^(PPs|All Products|Free Tools|Entries Plus|Smart Pick|Pocket PPs)\b.*$/i, '')
-      .replace(/\s+/g, ' ')
-      .trim();
+  const race = {
+    date,
+    track,
+    trackCode,
+    race: raceNum,
+    postTime,
+    surface: '',
+    distance: raceType,
+    sourceUrl,
+    horses: []
+  };
 
-    if (!name || name.length < 2 || /^(Race|Go to Race|Index|Home|Purse|Distance)$/i.test(name)) continue;
-    if (current.horses.some((h) => h.programNumber === programNumber)) continue;
-
-    const morningLine = line.match(/Morning\s+Line:?\s*([0-9]+\/[0-9]+|Even|[0-9.]+)/i)?.[1]
-      || line.match(/\|\s*([0-9]+\/[0-9]+|Even)\s*(?:\||$)/i)?.[1]
-      || '';
-    const jockey = line.match(/Jockey:?\s*(.+?)(?:\s+Trainer:|\s+Owner:|\s+Breeder:|\s+Morning Line:|$)/i)?.[1]?.trim() || '';
-    const trainer = line.match(/Trainer:?\s*(.+?)(?:\s+Owner:|\s+Breeder:|\s+Morning Line:|$)/i)?.[1]?.trim() || '';
-
-    current.horses.push({
+  for (let i = 0; i < lines.length; i += 1) {
+    const m = lines[i].match(/^Program:\s*([0-9A-Z]+)\s+Post:\s*([0-9A-Z]+)\s+Odds:\s*([^|]+)$/i);
+    if (!m) continue;
+    const programNumber = m[1];
+    const morningLine = m[3].trim();
+    const name = lines[i + 1] || 'Unknown Horse';
+    const jockey = (lines[i + 2] || '').replace(/^Jockey:\s*/i, '').trim();
+    const trainer = (lines[i + 3] || '').replace(/^Trainer:\s*/i, '').trim();
+    race.horses.push({
       programNumber,
       name,
       jockey,
@@ -157,28 +138,35 @@ function parseEquibaseHtml(html, trackCode, sourceUrl = '') {
     });
   }
 
-  if (current?.horses?.length >= 2) races.push(current);
-
-  for (const race of races) {
-    race.horses = race.horses.map((horse, index) => ({
-      ...horse,
-      ...estimateRatings(horse, race, index)
-    }));
-  }
-
-  return races;
+  if (race.horses.length < 2) return null;
+  race.horses = race.horses.map((horse, index) => ({ ...horse, ...estimateRatings(horse, race, index) }));
+  return race;
 }
 
-async function fetchText(url) {
-  const response = await fetch(url, {
-    headers: {
-      'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/125 Safari/537.36',
-      accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'accept-language': 'en-US,en;q=0.9'
+function parseMobileTrackDates(html, trackCode) {
+  // Mobile pages link dates like entriesMNR20260608.html. These are much more reliable than full desktop pages.
+  const re = new RegExp(`entries${trackCode}(\\d{8})\\.html`, 'gi');
+  const dates = new Set();
+  let match;
+  while ((match = re.exec(html))) dates.add(match[1]);
+  return [...dates];
+}
+
+function parseMobileRaceLinks(html, trackCode, dateYmd) {
+  const re = new RegExp(`entries${trackCode}${dateYmd}(\\d{2})\\.html`, 'gi');
+  const races = new Set();
+  let match;
+  while ((match = re.exec(html))) races.add(match[1]);
+
+  // Some fetch renderers hide hrefs but include Race 1, Race 2 text. Fallback creates the normal URLs.
+  if (!races.size) {
+    for (const line of htmlToLines(html)) {
+      const raceMatch = line.match(/Race\s+(\d{1,2})\b/i);
+      if (raceMatch) races.add(String(raceMatch[1]).padStart(2, '0'));
     }
-  });
-  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-  return response.text();
+  }
+
+  return [...races].sort((a, b) => Number(a) - Number(b));
 }
 
 export async function loadRacesFromCsv(csvPath = config.data.raceCsvPath) {
@@ -228,56 +216,49 @@ export async function loadRacesFromPublicCsvUrl(url = config.data.publicCsvUrl) 
   return loadRacesFromCsv(tmpPath);
 }
 
-async function discoverEquibaseTodayUrls(dateCode) {
-  if (!config.data.autoDiscoverTracks) return [];
-  try {
-    const indexUrl = 'https://www.equibase.com/static/entry/index.html';
-    const html = await fetchText(indexUrl);
-    const urls = new Set();
-    const re = new RegExp(`RaceCardIndex([A-Z0-9]+)${dateCode}USA-EQB\\.html`, 'g');
-    let match;
-    while ((match = re.exec(html))) {
-      urls.add(`https://www.equibase.com/static/entry/RaceCardIndex${match[1]}${dateCode}USA-EQB.html`);
-    }
-    console.log(`Discovered ${urls.size} Equibase race-card URLs for today.`);
-    return [...urls];
-  } catch (error) {
-    console.warn(`Could not auto-discover Equibase tracks: ${error.message}`);
-    return [];
-  }
-}
-
-function configuredEquibaseUrls(dateCode) {
-  return config.data.trackCodes.flatMap((trackCode) => [
-    `https://www.equibase.com/static/entry/RaceCardIndex${trackCode}${dateCode}USA-EQB.html`,
-    `https://www.equibase.com/static/entry/${trackCode}${dateCode}USA-EQB.html`
-  ]);
-}
-
-export async function loadRacesFromEquibase() {
-  const dateCode = todayMmDdYy(config.timezone);
+export async function loadRacesFromEquibaseMobile() {
+  const today = todayYyyyMmDd(config.timezone);
   const allRaces = [];
-  const urls = [...new Set([...(await discoverEquibaseTodayUrls(dateCode)), ...configuredEquibaseUrls(dateCode)])];
 
-  for (const url of urls) {
-    const trackCode = url.match(/RaceCardIndex([A-Z0-9]+)\d{6}USA-EQB\.html/i)?.[1]
-      || url.match(/\/([A-Z0-9]+)\d{6}USA-EQB\.html/i)?.[1]
-      || 'UNK';
+  for (const trackCode of config.data.trackCodes) {
     try {
-      console.log(`Fetching ${url}`);
-      const html = await fetchText(url);
-      const races = parseEquibaseHtml(html, trackCode, url);
-      if (!races.length) console.warn(`Fetched ${trackCode}, but parsed 0 races from that page.`);
-      allRaces.push(...races);
+      const trackUrl = `https://mobile.equibase.com/html/entries${trackCode}.html`;
+      console.log(`Fetching mobile track page ${trackUrl}`);
+      const trackHtml = await fetchText(trackUrl);
+      const dates = parseMobileTrackDates(trackHtml, trackCode);
+      const dateToUse = dates.includes(today) ? today : today;
+      if (dates.length && !dates.includes(today)) {
+        console.log(`${trackCode}: mobile page has dates ${dates.join(', ')}, but not today ${today}. Skipping.`);
+        continue;
+      }
+
+      const dayUrl = `https://mobile.equibase.com/html/entries${trackCode}${dateToUse}.html`;
+      console.log(`Fetching mobile day page ${dayUrl}`);
+      const dayHtml = await fetchText(dayUrl);
+      const raceIds = parseMobileRaceLinks(dayHtml, trackCode, dateToUse);
+      if (!raceIds.length) {
+        console.warn(`${trackCode}: found 0 race links on mobile day page.`);
+        continue;
+      }
+
+      for (const raceId of raceIds) {
+        const raceUrl = `https://mobile.equibase.com/html/entries${trackCode}${dateToUse}${raceId}.html`;
+        try {
+          const raceHtml = await fetchText(raceUrl);
+          const race = parseMobileRacePage(raceHtml, trackCode, raceUrl);
+          if (race) allRaces.push(race);
+          else console.warn(`${trackCode} race ${Number(raceId)}: parsed 0 horses.`);
+        } catch (error) {
+          console.warn(`Could not fetch ${trackCode} race ${Number(raceId)}: ${error.message}`);
+        }
+      }
     } catch (error) {
-      console.warn(`Could not fetch ${trackCode}: ${error.message}`);
+      console.warn(`Could not fetch mobile entries for ${trackCode}: ${error.message}`);
     }
   }
 
   const deduped = new Map();
-  for (const race of allRaces) {
-    deduped.set(`${race.trackCode || race.track}|${race.race}`, race);
-  }
+  for (const race of allRaces) deduped.set(`${race.trackCode}|${race.race}`, race);
   return [...deduped.values()];
 }
 
@@ -289,7 +270,7 @@ export async function loadRawRaces() {
   } else if (config.data.source === 'public_csv_url') {
     races = await loadRacesFromPublicCsvUrl();
   } else {
-    races = await loadRacesFromEquibase();
+    races = await loadRacesFromEquibaseMobile();
     if (!races.length && config.data.fallbackToCsv) {
       console.warn('No public-source races found. Falling back to CSV.');
       races = await loadRacesFromCsv();

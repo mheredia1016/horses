@@ -9,11 +9,13 @@ Free-source horse racing Discord alerts for:
 
 ## Important fix in this version
 
-The bot now uses the correct Equibase race-card URL format:
+The bot now uses Equibase **mobile entry pages** instead of the desktop RaceCardIndex pages.
 
-`RaceCardIndex{TRACK}{MMDDYY}USA-EQB.html`
+The mobile pages are easier to parse and expose entries like:
 
-It also auto-discovers today’s Equibase race-card links from the public Equibase entries index, so you are not limited to the track codes you typed in.
+`https://mobile.equibase.com/html/entriesMNR.html`
+
+Then the bot automatically checks today’s date page and race pages for each track code.
 
 ## Railway variables
 
@@ -28,7 +30,6 @@ Recommended:
 ```env
 DATA_SOURCE=equibase
 TIMEZONE=America/Chicago
-AUTO_DISCOVER_TRACKS=true
 RUN_ON_START=true
 UPCOMING_SCAN_MINUTES=15
 UPCOMING_WINDOW_MINUTES=720
@@ -41,7 +42,7 @@ MIN_SUPERFECTA_SCORE=60
 FALLBACK_TO_CSV=false
 ```
 
-Optional track codes if auto-discovery fails:
+Track codes:
 
 ```env
 TRACK_CODES=CD,BAQ,GP,SA,DMR,SAR,KEE,OP,TP,WO,PID,MTH,LS,ELP,DEL,PRX,CT,MNR,LAD,EVD,PEN,CBY,RP,HST,ALB,IND,ASD,BTP,FMT,EMD,FER,HAW

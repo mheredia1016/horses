@@ -30,7 +30,7 @@ console.log(`Now UTC: ${now.toISOString()}`);
 console.log(`Bot timezone: ${config.timezone}`);
 console.log(`Today local: ${getLocalDateString(now, config.timezone)}`);
 console.log(`Data source: ${config.data.source}`);
-console.log(`Auto-discover tracks: ${config.data.autoDiscoverTracks}`);
+console.log(`Mobile Equibase source: enabled`);
 console.log(`Track codes: ${config.data.trackCodes.join(',')}`);
 console.log(`Raw races loaded: ${raw.length}`);
 console.log(`Upcoming races kept: ${upcoming.length}`);
@@ -43,7 +43,7 @@ for (const race of raw.slice(0, 80)) {
 }
 
 if (!raw.length) {
-  console.log('\nNo raw races loaded. Most likely Equibase blocked Railway or the source page format changed. Set DATA_SOURCE=public_csv_url with a published Google Sheet CSV if this repeats.');
+  console.log('\nNo raw races loaded. Most likely Equibase mobile pages blocked Railway, today is not available for your TRACK_CODES, or the source page format changed. Set DATA_SOURCE=public_csv_url with a published Google Sheet CSV if this repeats.');
 }
 if (raw.length && !upcoming.length) {
   console.log('\nRaw races loaded, but all were filtered out. Increase UPCOMING_WINDOW_MINUTES or set SKIP_PAST_RACES=false for testing.');
