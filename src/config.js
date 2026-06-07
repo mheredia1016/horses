@@ -23,7 +23,9 @@ export const config = {
   schedule: {
     morningReportHour: num(process.env.MORNING_REPORT_HOUR, 8),
     resultsReportHour: num(process.env.RESULTS_REPORT_HOUR, 21),
-    runOnStart: bool(process.env.RUN_ON_START, true)
+    runOnStart: bool(process.env.RUN_ON_START, true),
+    upcomingScanMinutes: num(process.env.UPCOMING_SCAN_MINUTES, 15),
+    upcomingWindowMinutes: num(process.env.UPCOMING_WINDOW_MINUTES, 240)
   },
   features: {
     winBets: bool(process.env.ENABLE_WIN_BETS, true),
@@ -33,9 +35,9 @@ export const config = {
     resultsReport: bool(process.env.ENABLE_RESULTS_REPORT, true)
   },
   scoring: {
-    minWinScore: num(process.env.MIN_WIN_SCORE, 78),
-    minExactaScore: num(process.env.MIN_EXACTA_SCORE, 74),
-    minSuperfectaScore: num(process.env.MIN_SUPERFECTA_SCORE, 84),
+    minWinScore: num(process.env.MIN_WIN_SCORE, 68),
+    minExactaScore: num(process.env.MIN_EXACTA_SCORE, 68),
+    minSuperfectaScore: num(process.env.MIN_SUPERFECTA_SCORE, 70),
     longshotMinOdds: num(process.env.LONGSHOT_MIN_ODDS, 8),
     maxLongshotAlertsPerDay: num(process.env.MAX_LONGSHOT_ALERTS_PER_DAY, 5),
     maxSuperfectaAlertsPerDay: num(process.env.MAX_SUPERFECTA_ALERTS_PER_DAY, 3)

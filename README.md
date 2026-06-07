@@ -157,3 +157,36 @@ If blank, everything posts to `DISCORD_WEBHOOK_URL`.
 ## Notes
 
 This bot does not guarantee winners. It is a ranking/alert system for discussion and tracking. Bet responsibly.
+
+
+## Important: upcoming-race scanner
+
+The bot now does **not** only post at 8 AM. It also scans for upcoming races every `UPCOMING_SCAN_MINUTES` minutes and posts plays for races inside `UPCOMING_WINDOW_MINUTES`.
+
+Recommended Railway variables:
+
+```env
+RUN_ON_START=true
+UPCOMING_SCAN_MINUTES=15
+UPCOMING_WINDOW_MINUTES=240
+POST_TIME_GRACE_MINUTES=10
+MIN_WIN_SCORE=68
+MIN_EXACTA_SCORE=68
+MIN_SUPERFECTA_SCORE=70
+```
+
+Manual Railway commands:
+
+```bash
+npm run upcoming
+```
+
+Debug the data source without posting:
+
+```bash
+npm run debug-source
+```
+
+If you see races loaded but no plays, lower the score thresholds. Free public pages do not include premium speed figures, so this bot estimates ratings from public fields like morning line and field depth.
+
+If you see 0 raw races, the issue is usually `TRACK_CODES`, the public source blocking Railway, or the track not having a free Equibase entries page for that date.

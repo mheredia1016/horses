@@ -237,7 +237,7 @@ export async function loadRacesFromEquibase() {
   return allRaces;
 }
 
-export async function getTodayRaces() {
+export async function loadRawRaces() {
   let races = [];
 
   if (config.data.source === 'csv') {
@@ -252,5 +252,16 @@ export async function getTodayRaces() {
     }
   }
 
-  return filterRacesForPosting(races);
+  console.log(`Loaded ${races.length} raw races from ${config.data.source}.`);
+  return races;
+}
+
+export async function getTodayRaces() {
+  const races = await loadRawRaces();
+  const filtered = filterRacesForPosting(races);
+  console.log(`After today/upcoming filters: ${filtered.length} races.`);
+  if (!filtered.length && races.length) {
+    console.log('Loaded races were filtered out. Check date, post_time, TIMEZONE, TRACK_CODES, and POST_TIME_GRACE_MINUTES.');
+  }
+  return filtered;
 }

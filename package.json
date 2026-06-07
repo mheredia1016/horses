@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node src/index.js",
     "test-alert": "DRY_RUN=true node src/test-alert.js",
-    "once": "node src/run-once.js"
+    "once": "node src/run-once.js",
+    "upcoming": "node src/run-upcoming.js",
+    "debug-source": "DRY_RUN=true node src/run-upcoming.js --force"
   },
   "dependencies": {
     "csv-parse": "^5.5.6",

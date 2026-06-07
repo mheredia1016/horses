@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import { config } from './config.js';
 import { runMorningReport, runResultsReport } from './run-alerts.js';
+import { runUpcomingReport } from './run-upcoming.js';
 
 function safeRun(name, fn) {
   return async () => {
@@ -18,9 +19,13 @@ export function startScheduler() {
     timezone: config.timezone
   });
 
+  cron.schedule(`*/${config.schedule.upcomingScanMinutes} * * * *`, safeRun('upcoming race scan', runUpcomingReport), {
+    timezone: config.timezone
+  });
+
   cron.schedule(`0 ${config.schedule.resultsReportHour} * * *`, safeRun('results report', runResultsReport), {
     timezone: config.timezone
   });
 
-  console.log(`Scheduler active. Morning: ${config.schedule.morningReportHour}:00, Results: ${config.schedule.resultsReportHour}:00, TZ: ${config.timezone}`);
+  console.log(`Scheduler active. Morning: ${config.schedule.morningReportHour}:00, Upcoming scan: every ${config.schedule.upcomingScanMinutes} min, Results: ${config.schedule.resultsReportHour}:00, TZ: ${config.timezone}`);
 }

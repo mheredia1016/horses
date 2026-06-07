@@ -15,7 +15,7 @@ const TZ_ABBR = {
   PDT: 'America/Los_Angeles'
 };
 
-function getLocalDateString(date = new Date(), timeZone = config.timezone) {
+export function getLocalDateString(date = new Date(), timeZone = config.timezone) {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone,
     year: 'numeric',
@@ -27,7 +27,7 @@ function getLocalDateString(date = new Date(), timeZone = config.timezone) {
   return `${lookup.year}-${lookup.month}-${lookup.day}`;
 }
 
-function parsePostTime(postTime) {
+export function parsePostTime(postTime) {
   const raw = String(postTime || '').trim();
   const match = raw.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?\s*([A-Z]{2,3})?/i);
   if (!match) return null;
@@ -73,12 +73,13 @@ function getOffsetMinutes(timeZone, date) {
 }
 
 export function racePostDateUtc(race) {
-  if (!race?.date || race.date === 'today') return null;
-
-  const parsed = parsePostTime(race.postTime);
+  const parsed = parsePostTime(race?.postTime);
   if (!parsed) return null;
 
-  const [year, month, day] = race.date.split('-').map(Number);
+  const today = getLocalDateString(new Date(), config.timezone);
+  const raceDate = (!race?.date || race.date === 'today') ? today : race.date;
+
+  const [year, month, day] = String(raceDate).split('-').map(Number);
   if (!year || !month || !day) return null;
 
   const utcGuess = new Date(Date.UTC(year, month - 1, day, parsed.hour, parsed.minute, 0));
@@ -104,4 +105,21 @@ export function filterRacesForPosting(races, now = new Date()) {
 
     return true;
   });
+}
+
+
+export function filterUpcomingRaces(races, now = new Date(), windowMinutes = config.schedule.upcomingWindowMinutes) {
+  const windowMs = windowMinutes * 60 * 1000;
+  return filterRacesForPosting(races, now)
+    .filter((race) => {
+      const postUtc = racePostDateUtc(race);
+      if (!postUtc) return true;
+      const delta = postUtc.getTime() - now.getTime();
+      return delta >= 0 && delta <= windowMs;
+    })
+    .sort((a, b) => {
+      const at = racePostDateUtc(a)?.getTime() ?? 0;
+      const bt = racePostDateUtc(b)?.getTime() ?? 0;
+      return at - bt;
+    });
 }
