@@ -11,7 +11,7 @@ Free-source starter bot for horse racing Discord alerts.
 - Daily morning card
 - Results placeholder report
 
-This is Option A: no live odds scraping yet. It uses a CSV entries file so the bot is stable and easy to run on GitHub/Railway.
+This is Option A. It now pulls from a free public entries source by default. CSV is only a backup/test mode.
 
 ## Setup
 
@@ -54,12 +54,12 @@ npm start
 DISCORD_WEBHOOK_URL=your_discord_webhook
 ```
 
-Optional recommended variables:
+Recommended variables:
 
 ```env
 TIMEZONE=America/Chicago
-MORNING_REPORT_HOUR=8
-RESULTS_REPORT_HOUR=21
+DATA_SOURCE=equibase
+TRACK_CODES=CD,BAQ,GP,SA,DMR,SAR,KEE,OP,TP,WO,PID,MTH,LS,ELP,DEL,PRX,CT,MNR,LAD
 RUN_ON_START=true
 ```
 
@@ -69,33 +69,65 @@ Railway start command:
 npm start
 ```
 
-## CSV Data Format
+## Data Sources
 
-Default path:
+### Default: Equibase public entries
 
 ```env
+DATA_SOURCE=equibase
+```
+
+The bot builds today's Equibase entry URLs using track codes and today's date, for example:
+
+```text
+https://www.equibase.com/static/entry/CD060626USA-EQB.html
+```
+
+Control tracks with:
+
+```env
+TRACK_CODES=CD,BAQ,GP,SA,DMR,SAR,KEE,OP,TP,WO,PID,MTH,LS,ELP,DEL,PRX,CT,MNR,LAD
+```
+
+Important: this is a free public web source, not an official API. If Equibase blocks server requests or changes their page layout, the bot may return no races. That is why the project also supports a published CSV URL and local CSV fallback.
+
+### Optional: Published CSV URL
+
+This is the most stable free option if you publish a Google Sheet as CSV.
+
+```env
+DATA_SOURCE=public_csv_url
+PUBLIC_RACE_CSV_URL=https://docs.google.com/spreadsheets/d/e/.../pub?output=csv
+```
+
+### Backup: Local CSV
+
+```env
+DATA_SOURCE=csv
 RACE_CSV_PATH=data/sample-races.csv
 ```
 
-Columns:
+CSV columns:
 
 ```csv
 date,track,race,post_time,surface,distance,program_number,horse,morning_line,jockey,trainer,speed_figure,recent_form,jockey_win_pct,trainer_win_pct,class_rating,pace_rating
 ```
 
-The bot groups rows by date + track + race, scores each horse, then creates alerts.
+## Race Date/Time Filters
+
+These are enabled by default so the bot does not post old races:
+
+```env
+POST_ONLY_TODAY=true
+SKIP_PAST_RACES=true
+POST_TIME_GRACE_MINUTES=0
+```
+
+Use post times like `2:42 PM ET`, `4:18 PM CT`, etc.
 
 ## Scores
 
-The model uses:
-
-- Speed figure
-- Recent form
-- Pace rating
-- Class rating
-- Jockey win percentage
-- Trainer win percentage
-- Odds value boost
+When using the free Equibase entry pages, premium speed figures are not included. The model estimates rankings from free fields like morning line, post position, and field depth. If you use CSV/Google Sheet mode, you can include your own speed/form/pace/class numbers and the model will use them.
 
 Thresholds are controlled in `.env`:
 
@@ -124,4 +156,4 @@ If blank, everything posts to `DISCORD_WEBHOOK_URL`.
 
 ## Notes
 
-This bot does not guarantee winners. It is a ranking/alert system for discussion and tracking.
+This bot does not guarantee winners. It is a ranking/alert system for discussion and tracking. Bet responsibly.
