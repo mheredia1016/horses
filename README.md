@@ -1,84 +1,87 @@
 # Horse Racing Discord Bot
 
-Free-source horse racing Discord alerts for:
+Railway-ready Discord alerts for horse racing:
+
 - Best Win Bet
 - Best Longshot
 - Exacta Box
-- Value/longshot plays
-- Selective Superfecta Bombs
+- Selective Superfecta Box
+- Daily/Upcoming scanner
 
-## Important fix in this version
+## Important data-source note
 
-The bot now uses Equibase **mobile entry pages** instead of the desktop RaceCardIndex pages.
+Free Equibase scraping is not reliable on Railway. Equibase pages can be protected by bot detection, and datacenter IPs may receive block/interruption pages instead of race data. This version now defaults to:
 
-The mobile pages are easier to parse and expose entries like:
+```env
+DATA_SOURCE=multi
+```
 
-`https://mobile.equibase.com/html/entriesMNR.html`
+`multi` tries sources in this order:
 
-Then the bot automatically checks today’s date page and race pages for each track code.
+1. `PUBLIC_RACE_CSV_URL` if provided
+2. SportsBetting3 free track pages when supported
+3. Equibase mobile pages last
 
-## Railway variables
-
-Required:
+## Required Railway variable
 
 ```env
 DISCORD_WEBHOOK_URL=your_discord_webhook
 ```
 
-Recommended:
+## Recommended Railway variables
 
 ```env
-DATA_SOURCE=equibase
+DATA_SOURCE=multi
 TIMEZONE=America/Chicago
+TRACK_CODES=CT,MNR,LAD,PRX,GP,SA,CD,SAR,WO,EMD,RP,HAW
 RUN_ON_START=true
 UPCOMING_SCAN_MINUTES=15
 UPCOMING_WINDOW_MINUTES=720
-POST_ONLY_TODAY=true
-SKIP_PAST_RACES=true
-POST_TIME_GRACE_MINUTES=10
-MIN_WIN_SCORE=55
-MIN_EXACTA_SCORE=55
-MIN_SUPERFECTA_SCORE=60
-FALLBACK_TO_CSV=false
-```
-
-Track codes:
-
-```env
-TRACK_CODES=CD,BAQ,GP,SA,DMR,SAR,KEE,OP,TP,WO,PID,MTH,LS,ELP,DEL,PRX,CT,MNR,LAD,EVD,PEN,CBY,RP,HST,ALB,IND,ASD,BTP,FMT,EMD,FER,HAW
+POST_TIME_GRACE_MINUTES=20
+MIN_WIN_SCORE=50
+MIN_EXACTA_SCORE=50
+MIN_SUPERFECTA_SCORE=55
 ```
 
 ## Commands
 
-Start the bot:
+Start bot:
 
 ```bash
 npm start
 ```
 
-Post upcoming races now:
-
-```bash
-npm run upcoming
-```
-
-Diagnose why it is not posting:
+Run a diagnostic without posting:
 
 ```bash
 npm run diagnose
 ```
 
-The diagnose command prints:
-- how many raw races were fetched
-- how many upcoming races survived filters
-- why each race was kept or filtered out
-- whether the issue is data source, time parsing, track coverage, or score thresholds
+Post upcoming alerts now:
 
-## Free-source warning
+```bash
+npm run upcoming
+```
 
-Equibase is a free public website, not an official API. Sometimes Railway/server traffic can be blocked or page HTML can change. If Equibase returns zero races, the stable free fallback is a Google Sheet published as CSV:
+Send a fake Discord test alert:
+
+```bash
+npm run test-alert
+```
+
+## Most stable free setup
+
+The most stable free setup is a published Google Sheet as CSV:
 
 ```env
 DATA_SOURCE=public_csv_url
-PUBLIC_RACE_CSV_URL=your_published_google_sheet_csv_url
+PUBLIC_RACE_CSV_URL=https://docs.google.com/spreadsheets/d/e/.../pub?output=csv
 ```
+
+Required CSV columns:
+
+```csv
+date,track,track_code,race,post_time,program_number,horse,jockey,trainer,morning_line,speed_figure,recent_form,jockey_win_pct,trainer_win_pct,class_rating,pace_rating
+```
+
+CSV is not required, but it is the most stable free source if public pages block Railway.

@@ -10,7 +10,9 @@
     "once": "node src/run-once.js",
     "upcoming": "node src/run-upcoming.js",
     "debug-source": "DRY_RUN=true node src/diagnose.js",
-    "diagnose": "DRY_RUN=true node src/diagnose.js"
+    "diagnose": "DRY_RUN=true node src/diagnose.js",
+    "dump-race": "DRY_RUN=true node src/dump-race.js",
+    "source-test": "DRY_RUN=true node src/diagnose.js"
   },
   "dependencies": {
     "csv-parse": "^5.5.6",
