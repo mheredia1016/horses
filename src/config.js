@@ -43,7 +43,7 @@ export const config = {
     maxSuperfectaAlertsPerDay: num(process.env.MAX_SUPERFECTA_ALERTS_PER_DAY, 3)
   },
   data: {
-    source: process.env.DATA_SOURCE || 'multi',
+    source: process.env.DATA_SOURCE || 'equibase',
     raceCsvPath: process.env.RACE_CSV_PATH || 'data/sample-races.csv',
     publicCsvUrl: process.env.PUBLIC_RACE_CSV_URL || '',
     trackCodes: (process.env.TRACK_CODES || 'CD,BAQ,GP,SA,DMR,SAR,KEE,OP,TP,WO,PID,MTH,LS,ELP,DEL,PRX,CT,MNR,LAD,EVD,PEN,CBY,RP,HST,ALB,IND,ASD,BTP,FMT,EMD,FER,HAW').split(',').map((x) => x.trim().toUpperCase()).filter(Boolean),
