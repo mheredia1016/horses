@@ -1,5 +1,5 @@
 # Horse Racing Discord Bot
-
+ 
 Free-source horse racing Discord alerts for:
 - Best Win Bet
 - Best Longshot
