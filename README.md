@@ -1,66 +1,57 @@
-# Horse Racing Discord Bot — SportsGameOdds Version
+# Horse Racing Discord Bot
 
-This version uses the SportsGameOdds API instead of scraping Equibase/DRF pages.
+Clean Railway/GitHub starter using SportsGameOdds. No `node_modules` included.
 
-## Required Railway Variables
+## Required Railway variables
 
 ```env
 DISCORD_WEBHOOK_URL=your_discord_webhook
 SPORTSGAMEODDS_API_KEY=your_sgo_key
-DATA_SOURCE=sportsgameodds
 TIMEZONE=America/Chicago
 RUN_ON_START=true
 ```
 
-SportsGameOdds lists `HORSE_RACING` as a supported `sportID`, and this bot requests upcoming events from `/v2/events/` with `sportID=HORSE_RACING` and `oddsAvailable=true`.
-
-## Recommended Variables
+## Useful variables
 
 ```env
-UPCOMING_SCAN_MINUTES=15
+SCAN_INTERVAL_MINUTES=15
 UPCOMING_WINDOW_MINUTES=720
-POST_TIME_GRACE_MINUTES=10
+MIN_HORSES_PER_RACE=4
+MAX_RACES_PER_SCAN=10
+ENABLE_WIN_BETS=true
+ENABLE_LONGSHOTS=true
+ENABLE_EXACTAS=true
+ENABLE_SUPERFECTAS=true
 MIN_WIN_SCORE=55
 MIN_EXACTA_SCORE=55
 MIN_SUPERFECTA_SCORE=60
-SGO_EVENT_LIMIT=100
-SGO_MAX_PAGES=3
-SGO_MIN_HORSES=4
+LONGSHOT_MIN_AMERICAN_ODDS=800
+MAX_SUPERFECTA_ALERTS_PER_SCAN=3
+DRY_RUN=false
 ```
-
-Optional bookmaker filter:
-
-```env
-SGO_BOOKMAKER_IDS=fanduel,draftkings,betmgm,hardrockbet
-```
-
-Leave it blank to use all available books returned by your plan.
 
 ## Commands
 
 ```bash
 npm start
 npm run diagnose
-npm run sgo-diagnose
-npm run upcoming
-npm run once
+npm run post-now
 npm run test-alert
 ```
 
-## What Posts
+## Important
 
-- Best Win Bet
-- Best Longshot
-- Exacta Box
-- Selective Superfecta Box
+This bot uses `sportID=HORSE_RACING` and the `/v2/events/` endpoint with `oddsAvailable=true`.
+SportsGameOdds says the most current sport list for your key should be checked with `/sports`, and their docs list `HORSE_RACING` as a sportID. Your plan/key still needs access to that data.
 
-The bot uses available win odds/fair odds from SportsGameOdds to rank horses. Exacta and superfecta boxes are derived from the ranked horses; they are not official exotic pool prices unless your API response includes those markets.
+## GitHub upload
 
-## Notes
+Upload these files only. Do not upload:
 
-If `npm run sgo-diagnose` shows 0 races, check:
+```text
+node_modules/
+.env
+.git/
+```
 
-1. `SPORTSGAMEODDS_API_KEY` is set correctly.
-2. Your SportsGameOdds plan includes horse racing.
-3. There are upcoming horse racing events with odds in your requested window.
-4. Remove `SGO_BOOKMAKER_IDS` temporarily to avoid filtering out all books.
+Railway will run `npm install`/`npm ci` itself.

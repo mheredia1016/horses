@@ -1,25 +1,15 @@
 {
   "name": "horse-racing-discord-bot",
   "version": "1.0.0",
-  "description": "Horse racing Discord alerts powered by SportsGameOdds API.",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
-    "test-alert": "DRY_RUN=true node src/test-alert.js",
-    "once": "node src/run-once.js",
-    "upcoming": "node src/run-upcoming.js",
-    "debug-source": "DRY_RUN=true node src/diagnose.js",
-    "diagnose": "DRY_RUN=true node src/diagnose.js",
-    "dump-race": "DRY_RUN=true node src/dump-race.js",
-    "sgo-diagnose": "DRY_RUN=true node src/sgo-diagnose.js"
-  },
-  "dependencies": {
-    "csv-parse": "^5.5.6",
-    "dotenv": "^16.4.5",
-    "node-cron": "^3.0.3"
+    "diagnose": "node src/diagnose.js",
+    "post-now": "node src/post-now.js",
+    "test-alert": "node src/test-alert.js"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   }
 }

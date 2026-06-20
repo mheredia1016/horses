@@ -1,24 +1,14 @@
 import { config } from './config.js';
 
-export async function postToDiscord(webhookUrl, payload) {
-  if (config.dryRun) {
-    console.log('--- DRY RUN DISCORD PAYLOAD ---');
-    console.log(JSON.stringify(payload, null, 2));
+export async function postDiscord(content) {
+  if (config.dryRun || !config.discordWebhookUrl) {
+    console.log('\n--- DRY RUN DISCORD MESSAGE ---\n' + content + '\n--- END ---\n');
     return;
   }
-
-  if (!webhookUrl) {
-    throw new Error('Missing Discord webhook URL. Set DISCORD_WEBHOOK_URL or a channel-specific webhook.');
-  }
-
-  const response = await fetch(webhookUrl, {
+  const res = await fetch(config.discordWebhookUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ content })
   });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Discord webhook failed: ${response.status} ${text}`);
-  }
+  if (!res.ok) throw new Error(`Discord ${res.status}: ${await res.text()}`);
 }
