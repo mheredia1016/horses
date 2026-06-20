@@ -8,11 +8,37 @@ export async function getSports() {
 
 export async function getHorseRacingEvents() {
   const url = new URL(`${API_BASE}/events/`);
+
   url.searchParams.set('sportID', 'HORSE_RACING');
   url.searchParams.set('oddsAvailable', 'true');
   url.searchParams.set('limit', '200');
+
+  // ONLY FANDUEL
+  url.searchParams.set('bookmakerID', 'FANDUEL');
+
   const json = await sgoFetchUrl(url);
-  return normalizeList(json);
+
+  const events = normalizeList(json);
+
+  // Safety filter in case API returns other books
+  return events.map(event => {
+    if (!event.odds) return event;
+
+    event.odds = event.odds.filter(odd => {
+      const bookmakerName =
+        odd?.bookmaker?.name?.toLowerCase?.() || '';
+
+      const bookmakerId =
+        String(odd?.bookmakerID || '').toLowerCase();
+
+      return (
+        bookmakerName.includes('fanduel') ||
+        bookmakerId.includes('fanduel')
+      );
+    });
+
+    return event;
+  }).filter(event => event.odds?.length);
 }
 
 async function sgoFetch(path) {
@@ -20,19 +46,35 @@ async function sgoFetch(path) {
 }
 
 async function sgoFetchUrl(url) {
-  if (!config.sgoApiKey) throw new Error('Missing SPORTSGAMEODDS_API_KEY');
+  if (!config.sgoApiKey) {
+    throw new Error('Missing SPORTSGAMEODDS_API_KEY');
+  }
+
   const res = await fetch(url, {
     headers: {
       'x-api-key': config.sgoApiKey,
       accept: 'application/json'
     }
   });
+
   const text = await res.text();
+
   let json = null;
-  try { json = text ? JSON.parse(text) : null; } catch {
-    throw new Error(`SportsGameOdds returned non-JSON: ${text.slice(0, 300)}`);
+
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    throw new Error(
+      `SportsGameOdds returned non-JSON: ${text.slice(0, 300)}`
+    );
   }
-  if (!res.ok) throw new Error(`SportsGameOdds ${res.status}: ${JSON.stringify(json).slice(0, 600)}`);
+
+  if (!res.ok) {
+    throw new Error(
+      `SportsGameOdds ${res.status}: ${JSON.stringify(json).slice(0, 600)}`
+    );
+  }
+
   return json;
 }
 
