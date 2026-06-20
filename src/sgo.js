@@ -3,15 +3,28 @@ import { config } from './config.js';
 const API_BASE = 'https://api.sportsgameodds.com/v2';
 
 export async function getHorseRacingEvents() {
-  const url = new URL(`${API_BASE}/events/`);
+  const leagueIds = (process.env.LEAGUE_IDS || '')
+    .split(',')
+    .map(x => x.trim())
+    .filter(Boolean);
 
-  url.searchParams.set('sportID', 'HORSE_RACING');
-  url.searchParams.set('oddsAvailable', 'true');
-  url.searchParams.set('limit', '200');
+  if (!leagueIds.length) {
+    throw new Error('Missing LEAGUE_IDS. Your SGO tier requires leagueID.');
+  }
 
-  const events = await fetchJson(url);
+  const allEvents = [];
 
-  return normalize(events);
+  for (const leagueID of leagueIds) {
+    const url = new URL(`${API_BASE}/events/`);
+    url.searchParams.set('leagueID', leagueID);
+    url.searchParams.set('oddsAvailable', 'true');
+    url.searchParams.set('limit', '200');
+
+    const json = await fetchJson(url);
+    allEvents.push(...normalize(json));
+  }
+
+  return allEvents;
 }
 
 async function fetchJson(url) {
@@ -23,13 +36,12 @@ async function fetchJson(url) {
   });
 
   const text = await res.text();
-
   let json;
 
   try {
     json = JSON.parse(text);
   } catch {
-    throw new Error(`Non JSON response: ${text.slice(0, 500)}`);
+    throw new Error(`Non-JSON response: ${text.slice(0, 500)}`);
   }
 
   if (!res.ok) {
@@ -43,8 +55,8 @@ async function fetchJson(url) {
 
 function normalize(json) {
   if (Array.isArray(json)) return json;
-  if (Array.isArray(json.data)) return json.data;
-  if (Array.isArray(json.events)) return json.events;
-  if (Array.isArray(json.results)) return json.results;
+  if (Array.isArray(json?.data)) return json.data;
+  if (Array.isArray(json?.events)) return json.events;
+  if (Array.isArray(json?.results)) return json.results;
   return [];
 }
