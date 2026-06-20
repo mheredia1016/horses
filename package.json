@@ -1,7 +1,7 @@
 {
   "name": "horse-racing-discord-bot",
   "version": "1.0.0",
-  "description": "Free-source horse racing Discord alerts: win bets, longshots, exactas, and selective superfecta boxes.",
+  "description": "Horse racing Discord alerts powered by SportsGameOdds API.",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,7 +11,8 @@
     "upcoming": "node src/run-upcoming.js",
     "debug-source": "DRY_RUN=true node src/diagnose.js",
     "diagnose": "DRY_RUN=true node src/diagnose.js",
-    "dump-race": "DRY_RUN=true node src/dump-race.js"
+    "dump-race": "DRY_RUN=true node src/dump-race.js",
+    "sgo-diagnose": "DRY_RUN=true node src/sgo-diagnose.js"
   },
   "dependencies": {
     "csv-parse": "^5.5.6",

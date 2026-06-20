@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import { parse } from 'csv-parse/sync';
 import { config } from './config.js';
+import { fetchSportsGameOddsRaces } from './sgo-client.js';
 import { filterRacesForPosting } from './time-filter.js';
 
 function toNumber(value, fallback = 0) {
@@ -328,22 +329,47 @@ export async function loadRacesFromEquibaseMobile() {
 }
 
 export async function loadRawRaces() {
-  let races = [];
+  const source = String(config.data.source || '').toLowerCase();
 
-  if (config.data.source === 'csv') {
-    races = await loadRacesFromCsv();
-  } else if (config.data.source === 'public_csv_url') {
-    races = await loadRacesFromPublicCsvUrl();
-  } else {
-    races = await loadRacesFromEquibaseMobile();
-    if (!races.length && config.data.fallbackToCsv) {
-      console.warn('No public-source races found. Falling back to CSV.');
-      races = await loadRacesFromCsv();
-    }
+  if (source === 'sportsgameodds' || source === 'sgo') {
+    return fetchSportsGameOddsRaces();
   }
 
-  console.log(`Loaded ${races.length} raw races from ${config.data.source}.`);
-  return races;
+  if (source === 'csv') {
+    return loadRacesFromCsv(config.data.raceCsvPath);
+  }
+
+  if (source === 'public_csv_url') {
+    return loadRacesFromPublicCsvUrl(config.data.publicCsvUrl);
+  }
+
+  if (source === 'multi') {
+    try {
+      const sgoRaces = await fetchSportsGameOddsRaces();
+      if (sgoRaces.length) return sgoRaces;
+    } catch (error) {
+      console.log(`SportsGameOdds source failed: ${error.message}`);
+    }
+    try {
+      const equibaseRaces = await loadRacesFromEquibaseMobile();
+      if (equibaseRaces.length) return equibaseRaces;
+    } catch (error) {
+      console.log(`Equibase source failed: ${error.message}`);
+    }
+    if (config.data.publicCsvUrl) return loadRacesFromPublicCsvUrl(config.data.publicCsvUrl);
+    if (config.data.fallbackToCsv) return loadRacesFromCsv(config.data.raceCsvPath);
+    return [];
+  }
+
+  // Legacy free scraper mode. Kept as fallback only; SportsGameOdds is recommended.
+  try {
+    const races = await loadRacesFromEquibaseMobile();
+    if (races.length || !config.data.fallbackToCsv) return races;
+  } catch (error) {
+    console.log(`Equibase source failed: ${error.message}`);
+    if (!config.data.fallbackToCsv) return [];
+  }
+  return loadRacesFromCsv(config.data.raceCsvPath);
 }
 
 export async function getTodayRaces() {

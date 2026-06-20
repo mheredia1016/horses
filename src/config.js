@@ -42,8 +42,16 @@ export const config = {
     maxLongshotAlertsPerDay: num(process.env.MAX_LONGSHOT_ALERTS_PER_DAY, 5),
     maxSuperfectaAlertsPerDay: num(process.env.MAX_SUPERFECTA_ALERTS_PER_DAY, 3)
   },
+  sgo: {
+    apiKey: process.env.SPORTSGAMEODDS_API_KEY || process.env.SGO_API_KEY || '',
+    sportID: process.env.SGO_SPORT_ID || 'HORSE_RACING',
+    bookmakerIds: (process.env.SGO_BOOKMAKER_IDS || process.env.BOOKMAKER_IDS || '').split(',').map((x) => x.trim()).filter(Boolean),
+    limit: num(process.env.SGO_EVENT_LIMIT, 100),
+    maxPages: num(process.env.SGO_MAX_PAGES, 3),
+    minHorses: num(process.env.SGO_MIN_HORSES, 4)
+  },
   data: {
-    source: process.env.DATA_SOURCE || 'equibase',
+    source: process.env.DATA_SOURCE || 'sportsgameodds',
     raceCsvPath: process.env.RACE_CSV_PATH || 'data/sample-races.csv',
     publicCsvUrl: process.env.PUBLIC_RACE_CSV_URL || '',
     trackCodes: (process.env.TRACK_CODES || 'CD,BAQ,GP,SA,DMR,SAR,KEE,OP,TP,WO,PID,MTH,LS,ELP,DEL,PRX,CT,MNR,LAD,EVD,PEN,CBY,RP,HST,ALB,IND,ASD,BTP,FMT,EMD,FER,HAW').split(',').map((x) => x.trim().toUpperCase()).filter(Boolean),

@@ -1,84 +1,66 @@
-# Horse Racing Discord Bot
- 
-Free-source horse racing Discord alerts for:
-- Best Win Bet
-- Best Longshot
-- Exacta Box
-- Value/longshot plays
-- Selective Superfecta Bombs
+# Horse Racing Discord Bot — SportsGameOdds Version
 
-## Important fix in this version
+This version uses the SportsGameOdds API instead of scraping Equibase/DRF pages.
 
-The bot now uses Equibase **mobile entry pages** instead of the desktop RaceCardIndex pages.
-
-The mobile pages are easier to parse and expose entries like:
-
-`https://mobile.equibase.com/html/entriesMNR.html`
-
-Then the bot automatically checks today’s date page and race pages for each track code.
-
-## Railway variables
-
-Required:
+## Required Railway Variables
 
 ```env
 DISCORD_WEBHOOK_URL=your_discord_webhook
-```
-
-Recommended:
-
-```env
-DATA_SOURCE=equibase
+SPORTSGAMEODDS_API_KEY=your_sgo_key
+DATA_SOURCE=sportsgameodds
 TIMEZONE=America/Chicago
 RUN_ON_START=true
+```
+
+SportsGameOdds lists `HORSE_RACING` as a supported `sportID`, and this bot requests upcoming events from `/v2/events/` with `sportID=HORSE_RACING` and `oddsAvailable=true`.
+
+## Recommended Variables
+
+```env
 UPCOMING_SCAN_MINUTES=15
 UPCOMING_WINDOW_MINUTES=720
-POST_ONLY_TODAY=true
-SKIP_PAST_RACES=true
 POST_TIME_GRACE_MINUTES=10
 MIN_WIN_SCORE=55
 MIN_EXACTA_SCORE=55
 MIN_SUPERFECTA_SCORE=60
-FALLBACK_TO_CSV=false
+SGO_EVENT_LIMIT=100
+SGO_MAX_PAGES=3
+SGO_MIN_HORSES=4
 ```
 
-Track codes:
+Optional bookmaker filter:
 
 ```env
-TRACK_CODES=CD,BAQ,GP,SA,DMR,SAR,KEE,OP,TP,WO,PID,MTH,LS,ELP,DEL,PRX,CT,MNR,LAD,EVD,PEN,CBY,RP,HST,ALB,IND,ASD,BTP,FMT,EMD,FER,HAW
+SGO_BOOKMAKER_IDS=fanduel,draftkings,betmgm,hardrockbet
 ```
+
+Leave it blank to use all available books returned by your plan.
 
 ## Commands
 
-Start the bot:
-
 ```bash
 npm start
-```
-
-Post upcoming races now:
-
-```bash
-npm run upcoming
-```
-
-Diagnose why it is not posting:
-
-```bash
 npm run diagnose
+npm run sgo-diagnose
+npm run upcoming
+npm run once
+npm run test-alert
 ```
 
-The diagnose command prints:
-- how many raw races were fetched
-- how many upcoming races survived filters
-- why each race was kept or filtered out
-- whether the issue is data source, time parsing, track coverage, or score thresholds
+## What Posts
 
-## Free-source warning
+- Best Win Bet
+- Best Longshot
+- Exacta Box
+- Selective Superfecta Box
 
-Equibase is a free public website, not an official API. Sometimes Railway/server traffic can be blocked or page HTML can change. If Equibase returns zero races, the stable free fallback is a Google Sheet published as CSV:
+The bot uses available win odds/fair odds from SportsGameOdds to rank horses. Exacta and superfecta boxes are derived from the ranked horses; they are not official exotic pool prices unless your API response includes those markets.
 
-```env
-DATA_SOURCE=public_csv_url
-PUBLIC_RACE_CSV_URL=your_published_google_sheet_csv_url
-```
+## Notes
+
+If `npm run sgo-diagnose` shows 0 races, check:
+
+1. `SPORTSGAMEODDS_API_KEY` is set correctly.
+2. Your SportsGameOdds plan includes horse racing.
+3. There are upcoming horse racing events with odds in your requested window.
+4. Remove `SGO_BOOKMAKER_IDS` temporarily to avoid filtering out all books.
